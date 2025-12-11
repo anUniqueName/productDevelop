@@ -98,6 +98,7 @@ git push
 5. 配置项目：
    - **Entry Point**: `server.ts`
    - **Install Step**: `npm install && npm run build`
+   - **Build Command**: 留空（已在 Install Step 中执行）
 
 #### 步骤 3：配置环境变量
 
