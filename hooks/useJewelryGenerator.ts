@@ -37,7 +37,7 @@ export const useJewelryGenerator = () => {
     setGeneratedImages(prev => [placeholder, ...prev]);
 
     try {
-      const resultImageUrl = await generateJewelryDesign(referenceImage, config);
+      const resultImageUrl = await generateJewelryDesign(config, referenceImage);
       
       // Update the placeholder with the actual result
       setGeneratedImages(prev => prev.map(img => 
