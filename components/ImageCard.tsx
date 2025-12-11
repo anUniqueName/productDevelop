@@ -27,13 +27,30 @@ const ImageCard: React.FC<ImageCardProps> = ({
     e.stopPropagation();
     if (!img.config || isCoolingDown) return;
 
-    const newConfig = { ...img.config };
+    // 只提取需要的配置属性，避免传递污染的对象
+    const cleanConfig: Partial<JewelryConfig> = {
+      material: img.config.material,
+      craftsmanship: img.config.craftsmanship,
+      chainType: img.config.chainType,
+      extraElements: img.config.extraElements,
+      audience: img.config.audience,
+      creativityStrength: img.config.creativityStrength,
+      aspectRatio: img.config.aspectRatio,
+      resolution: img.config.resolution,
+      minRanking: img.config.minRanking,
+      minSearchVolume: img.config.minSearchVolume,
+      minSales: img.config.minSales,
+      maxPPC: img.config.maxPPC,
+    };
+
     if (variationInput.trim()) {
         // Append the new variation prompt to the existing miscPrompts
-        newConfig.miscPrompts = (newConfig.miscPrompts ? newConfig.miscPrompts + ', ' : '') + variationInput.trim();
+        cleanConfig.miscPrompts = (img.config.miscPrompts ? img.config.miscPrompts + ', ' : '') + variationInput.trim();
+    } else {
+        cleanConfig.miscPrompts = img.config.miscPrompts;
     }
-    
-    onGenerate(newConfig);
+
+    onGenerate(cleanConfig);
     setVariationInput(''); // Clear input after triggering
   };
 
