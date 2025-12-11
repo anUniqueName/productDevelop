@@ -40,11 +40,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     try {
+      // 调用后端登出API
       await logoutService();
+
+      // 清除用户状态
       setUser(null);
+
+      // 清除所有本地存储的认证相关数据
       localStorage.removeItem('user');
+
+      // 清除钉钉OAuth相关的sessionStorage
+      sessionStorage.removeItem('dingtalk_oauth_state');
+
+      // 可选:清除其他可能的缓存数据
+      // localStorage.removeItem('customPromptConfig'); // 如果需要清除提示词配置
+
+      console.log('[Auth] Logout successful, all local data cleared');
     } catch (error) {
       console.error('Logout error:', error);
+      // 即使后端登出失败,也清除本地数据
+      setUser(null);
+      localStorage.removeItem('user');
+      sessionStorage.removeItem('dingtalk_oauth_state');
       throw error;
     }
   };
