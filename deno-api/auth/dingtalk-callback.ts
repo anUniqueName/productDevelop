@@ -36,6 +36,7 @@ export async function handleDingTalkCallback(req: Request): Promise<Response> {
     }
 
     // Step 1: 交换 code 获取 accessToken
+    console.log("[DingTalk] Exchanging code for access token...");
     const tokenResponse = await fetch(
       "https://api.dingtalk.com/v1.0/oauth2/userAccessToken",
       {
@@ -51,16 +52,41 @@ export async function handleDingTalkCallback(req: Request): Promise<Response> {
     );
 
     if (!tokenResponse.ok) {
-      const error = await tokenResponse.text();
-      console.error("DingTalk Token Error:", error);
+      const errorText = await tokenResponse.text();
+      console.error("[DingTalk] Token Error:", errorText);
+
+      // 解析错误信息
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText };
+      }
+
+      // 如果是授权码已使用的错误，返回更友好的提示
+      if (errorData.code === "invalidParameter.authCode.notFound") {
+        return new Response(
+          JSON.stringify({
+            error: "Authorization code expired or already used",
+            message: "授权码已失效或已被使用，请重新登录",
+            details: errorData
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ error: "Failed to get access token" }),
+        JSON.stringify({
+          error: "Failed to get access token",
+          details: errorData
+        }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.accessToken;
+    console.log("[DingTalk] Access token obtained successfully");
 
     // Step 2: 获取用户信息
     const userInfoResponse = await fetch(
@@ -83,19 +109,28 @@ export async function handleDingTalkCallback(req: Request): Promise<Response> {
     const { unionId: userId, nick, avatarUrl, mobile, email } = userInfo;
 
     // Step 3: 生成 JWT Token
+    console.log("[DingTalk] Generating JWT token...");
     const key = await crypto.subtle.importKey(
       "raw",
       new TextEncoder().encode(jwtSecret),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
+      { name: "HMAC", hash: "SHA-512" },
+      true,
       ["sign", "verify"]
     );
 
     const jwtToken = await create(
-      { alg: "HS256", typ: "JWT" },
-      { userId, nick, avatarUrl, mobile, email, exp: Date.now() / 1000 + 7 * 24 * 60 * 60 },
+      { alg: "HS512", typ: "JWT" },
+      {
+        userId,
+        nick,
+        avatarUrl,
+        mobile,
+        email,
+        exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60
+      },
       key
     );
+    console.log("[DingTalk] JWT token generated successfully");
 
     // Step 4: 设置 Cookie
     const headers = new Headers({

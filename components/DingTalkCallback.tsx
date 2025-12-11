@@ -6,10 +6,19 @@ const DingTalkCallback: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =>
   const { login } = useAuth();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [error, setError] = useState<string | null>(null);
+  const [processed, setProcessed] = useState(false); // 防止重复处理
 
   useEffect(() => {
+    // 如果已经处理过，直接返回
+    if (processed) {
+      return;
+    }
+
     const processCallback = async () => {
       try {
+        // 标记为已处理
+        setProcessed(true);
+
         // 从 URL 获取 code 和 state
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
@@ -18,6 +27,8 @@ const DingTalkCallback: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =>
         if (!code) {
           throw new Error('未获取到授权码');
         }
+
+        console.log('[Callback] Processing authorization code...');
 
         // 验证 state（防止 CSRF 攻击）
         const savedState = sessionStorage.getItem('dingtalk_oauth_state');
@@ -29,7 +40,9 @@ const DingTalkCallback: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =>
         sessionStorage.removeItem('dingtalk_oauth_state');
 
         // 调用后端 API 交换 token 并获取用户信息
+        console.log('[Callback] Calling backend API...');
         const user = await handleDingTalkCallback(code);
+        console.log('[Callback] User info received:', user);
 
         // 更新认证状态
         login(user);
@@ -42,14 +55,14 @@ const DingTalkCallback: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =>
         }, 1000);
 
       } catch (err: any) {
-        console.error('Callback processing error:', err);
+        console.error('[Callback] Processing error:', err);
         setError(err.message || '登录失败');
         setStatus('error');
       }
     };
 
     processCallback();
-  }, [login, onSuccess]);
+  }, [processed]); // 只依赖 processed 状态
 
   return (
     <div
@@ -150,9 +163,14 @@ const DingTalkCallback: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =>
             <h2 style={{ fontSize: '20px', marginBottom: '10px', color: '#333' }}>
               登录失败
             </h2>
-            <p style={{ fontSize: '14px', color: '#666', marginBottom: '20px' }}>
+            <p style={{ fontSize: '14px', color: '#666', marginBottom: '10px' }}>
               {error}
             </p>
+            {error?.includes('授权码已失效') && (
+              <p style={{ fontSize: '12px', color: '#999', marginBottom: '20px' }}>
+                💡 提示：如果您已经看到主页，说明登录已成功，可以忽略此错误。
+              </p>
+            )}
             <button
               onClick={() => (window.location.href = '/')}
               style={{

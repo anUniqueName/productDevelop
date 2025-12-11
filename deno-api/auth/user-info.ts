@@ -44,8 +44,8 @@ export async function handleUserInfo(req: Request): Promise<Response> {
     const key = await crypto.subtle.importKey(
       "raw",
       new TextEncoder().encode(jwtSecret),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
+      { name: "HMAC", hash: "SHA-512" },
+      true,
       ["sign", "verify"]
     );
 
