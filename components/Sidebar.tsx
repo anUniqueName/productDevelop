@@ -357,7 +357,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       
       {/* Footer Fixed Button */}
       <div className="p-6 border-t border-white/5 bg-neutral-950/95 backdrop-blur-md z-30 absolute bottom-0 w-full">
-         <button onClick={onMainGenerate} disabled={isCoolingDown} className={`w-full py-4 rounded-full font-bold text-sm tracking-[0.2em] shadow-lg transition-all flex items-center justify-center gap-3 border border-emerald-500/20 uppercase ${isCoolingDown ? 'bg-neutral-900 text-neutral-500 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 text-white hover:scale-[1.02] shadow-emerald-900/50'}`}>
+         <button onClick={() => onMainGenerate?.()} disabled={isCoolingDown} className={`w-full py-4 rounded-full font-bold text-sm tracking-[0.2em] shadow-lg transition-all flex items-center justify-center gap-3 border border-emerald-500/20 uppercase ${isCoolingDown ? 'bg-neutral-900 text-neutral-500 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 text-white hover:scale-[1.02] shadow-emerald-900/50'}`}>
             {isCoolingDown ? <span className="animate-pulse">Cooldown...</span> : <><Icons.Sparkles /> 一键爆款即来</>}
          </button>
       </div>
