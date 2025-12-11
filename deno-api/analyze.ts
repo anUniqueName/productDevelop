@@ -32,6 +32,9 @@ export async function handleAnalyze(req: Request): Promise<Response> {
       );
     }
 
+    console.log("[Analyze] API Key exists:", !!apiKey);
+    console.log("[Analyze] API Key prefix:", apiKey?.substring(0, 10) + "...");
+
     // 使用 OpenRouter API
     const openai = new OpenAI({
       apiKey,

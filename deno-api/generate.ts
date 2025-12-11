@@ -32,6 +32,9 @@ export async function handleGenerate(req: Request): Promise<Response> {
       );
     }
 
+    console.log("[Generate] API Key exists:", !!apiKey);
+    console.log("[Generate] API Key prefix:", apiKey?.substring(0, 10) + "...");
+
     // 使用 OpenRouter API
     const openai = new OpenAI({
       apiKey,
