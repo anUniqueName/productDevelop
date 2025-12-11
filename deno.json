@@ -1,0 +1,17 @@
+{
+  "tasks": {
+    "dev": "deno run --allow-net --allow-read --allow-env --watch server.ts",
+    "start": "deno run --allow-net --allow-read --allow-env server.ts",
+    "build": "npm run build"
+  },
+  "imports": {
+    "djwt": "https://deno.land/x/djwt@v3.0.2/mod.ts",
+    "openai": "https://esm.sh/openai@4.77.3"
+  },
+  "compilerOptions": {
+    "lib": ["deno.window", "dom"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  }
+}
+

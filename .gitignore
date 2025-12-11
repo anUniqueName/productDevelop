@@ -34,6 +34,10 @@ lerna-debug.log*
 .netlify
 .cloudflare
 
+# Deno
+.deno/
+deno.lock
+
 # Testing
 coverage
 .nyc_output
