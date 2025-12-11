@@ -62,16 +62,24 @@ export const getCurrentUser = async (): Promise<User | null> => {
 
     if (!response.ok) {
       if (response.status === 401) {
-        return null; // 未登录
+        // 未登录是正常情况,不需要记录错误
+        return null;
       }
+      // 其他错误才记录
       const error = await response.json();
+      console.error('Get current user error:', error);
       throw new Error(error.message || 'Failed to get user info');
     }
 
     const data = await response.json();
     return data.user;
   } catch (error) {
-    console.error('Get current user error:', error);
+    // 网络错误或其他异常,静默处理
+    if (error instanceof Error && error.message.includes('Failed to get user info')) {
+      // 已经记录过的错误,直接抛出
+      throw error;
+    }
+    // 网络错误等,静默返回null
     return null;
   }
 };
