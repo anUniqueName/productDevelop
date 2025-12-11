@@ -88,12 +88,22 @@ export const generateJewelryDesign = async (
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Generation failed');
+      // 尝试解析JSON错误,如果失败则读取原始文本
+      let errorMessage = 'Generation failed';
+      try {
+        const error = await response.json();
+        errorMessage = error.message || error.error || errorMessage;
+      } catch {
+        // 如果不是JSON,读取原始文本
+        const text = await response.text();
+        console.error("Non-JSON error response:", text);
+        errorMessage = `Server error (${response.status}): ${text.substring(0, 200)}`;
+      }
+      throw new Error(errorMessage);
     }
 
     const result = await response.json();
-    
+
     if (!result.imageUrl) {
       throw new Error('No image URL in response');
     }

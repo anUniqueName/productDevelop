@@ -14,18 +14,32 @@ export async function handleGenerate(req: Request): Promise<Response> {
   }
 
   try {
+    console.log("[Generate] Request received");
+
     const apiKey = Deno.env.get("OPENROUTER_API_KEY");
     if (!apiKey) {
+      console.error("[Generate] OPENROUTER_API_KEY not configured");
       return new Response(
         JSON.stringify({ error: "OPENROUTER_API_KEY not configured" }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      console.error("[Generate] Failed to parse request body:", parseError);
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const { config, referenceImage, promptConfig } = body;
 
     if (!config) {
+      console.error("[Generate] Missing config in request");
       return new Response(
         JSON.stringify({ error: "Missing config" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
@@ -33,7 +47,11 @@ export async function handleGenerate(req: Request): Promise<Response> {
     }
 
     console.log("[Generate] API Key exists:", !!apiKey);
-    console.log("[Generate] API Key prefix:", apiKey?.substring(0, 10) + "...");
+    console.log("[Generate] Config received:", {
+      material: config.material,
+      aspectRatio: config.aspectRatio,
+      hasReference: !!referenceImage
+    });
 
     // 使用 OpenRouter API
     const openai = new OpenAI({
@@ -84,19 +102,36 @@ export async function handleGenerate(req: Request): Promise<Response> {
       });
     }
 
-    const response = await openai.chat.completions.create({
-      model: 'google/gemini-3-pro-image-preview',
-      messages: [
-        {
-          role: "user",
-          content: messageContent
+    console.log("[Generate] Calling OpenRouter API...");
+
+    let response;
+    try {
+      response = await openai.chat.completions.create({
+        model: 'google/gemini-3-pro-image-preview',
+        messages: [
+          {
+            role: "user",
+            content: messageContent
+          }
+        ],
+        modalities: ["image", "text"],
+        image_config: {
+          aspect_ratio: config.aspectRatio
         }
-      ],
-      modalities: ["image", "text"],
-      image_config: {
-        aspect_ratio: config.aspectRatio
-      }
-    } as any);
+      } as any);
+    } catch (apiError: any) {
+      console.error("[Generate] OpenRouter API call failed:", apiError);
+      return new Response(
+        JSON.stringify({
+          error: "OpenRouter API call failed",
+          message: apiError.message || String(apiError),
+          details: apiError.response?.data || null
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("[Generate] API response received");
 
     // Extract image from response
     const message = response.choices[0]?.message;
@@ -104,6 +139,7 @@ export async function handleGenerate(req: Request): Promise<Response> {
       const images = (message as any).images;
       if (images.length > 0) {
         const imageUrl = images[0].image_url.url;
+        console.log("[Generate] Image generated successfully");
         return new Response(
           JSON.stringify({ imageUrl }),
           { status: 200, headers: { "Content-Type": "application/json" } }
@@ -111,13 +147,15 @@ export async function handleGenerate(req: Request): Promise<Response> {
       }
     }
 
-    throw new Error('No image generated');
+    console.error("[Generate] No image in response");
+    throw new Error('No image generated in API response');
   } catch (error: any) {
-    console.error("Generate Error:", error);
+    console.error("[Generate] Unexpected error:", error);
     return new Response(
-      JSON.stringify({ 
-        error: "Failed to generate image", 
-        message: error.message 
+      JSON.stringify({
+        error: "Failed to generate image",
+        message: error.message || String(error),
+        stack: error.stack
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
