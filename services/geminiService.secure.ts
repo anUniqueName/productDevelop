@@ -58,13 +58,30 @@ export const generateJewelryDesign = async (
     // 获取当前的提示词配置
     const promptConfig = promptConfigManager.getConfig();
 
+    // 清理 config 对象，只保留需要的属性，避免循环引用
+    const cleanConfig: JewelryConfig = {
+      material: config.material,
+      craftsmanship: config.craftsmanship,
+      chainType: config.chainType,
+      extraElements: config.extraElements,
+      audience: config.audience,
+      miscPrompts: config.miscPrompts,
+      creativityStrength: config.creativityStrength,
+      aspectRatio: config.aspectRatio,
+      resolution: config.resolution,
+      minRanking: config.minRanking,
+      minSearchVolume: config.minSearchVolume,
+      minSales: config.minSales,
+      maxPPC: config.maxPPC,
+    };
+
     const response = await fetch(`${API_BASE_URL}/api/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        config,
+        config: cleanConfig,
         referenceImage,
         promptConfig,
       }),
