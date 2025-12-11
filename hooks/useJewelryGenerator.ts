@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { GeneratedImage, JewelryConfig } from '../types';
-import { generateJewelryDesign } from '../services/geminiService';
+import { generateJewelryDesign } from '../services/geminiService.secure';
 
 export const useJewelryGenerator = () => {
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);

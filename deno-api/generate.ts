@@ -23,11 +23,11 @@ export async function handleGenerate(req: Request): Promise<Response> {
     }
 
     const body = await req.json();
-    const { prompt } = body;
+    const { config, referenceImage, promptConfig } = body;
 
-    if (!prompt) {
+    if (!config) {
       return new Response(
-        JSON.stringify({ error: "Missing prompt" }),
+        JSON.stringify({ error: "Missing config" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -41,22 +41,77 @@ export async function handleGenerate(req: Request): Promise<Response> {
       baseURL: "https://openrouter.ai/api/v1",
     });
 
+    const { systemRole, outputRequirements, productSpecificGuidelines } = promptConfig?.generationPrompt || {
+      systemRole: "Generate a jewelry design image.",
+      outputRequirements: "Create a high-quality product image.",
+      productSpecificGuidelines: "Follow jewelry design best practices."
+    };
+
+    // Construct the prompt
+    const textPrompt = `
+      ${systemRole}
+      ${productSpecificGuidelines}
+
+      If a reference image is provided, use it as the primary structural and aesthetic inspiration, but evolve it based on the new parameters (Derived Design).
+
+      Design Specifications:
+      - Material: ${config.material}
+      - Craftsmanship: ${config.craftsmanship}
+      - Chain/Structure Type: ${config.chainType}
+      - Extra Decorative Elements: ${config.extraElements}
+      - Target Audience/Occasion: ${config.audience}
+      - Creativity/Variation Level: ${config.creativityStrength}% (Where 0% is identical to reference, 100% is completely new).
+      - Additional Instructions: ${config.miscPrompts}
+
+      Market Context (Use this to influence the style to be commercially viable):
+      - Target Ranking Index: Top ${config.minRanking}
+      - Min Sales Volume: ${config.minSales}+ units
+
+      ${outputRequirements}
+
+      Image Size: ${config.resolution}
+      Aspect Ratio: ${config.aspectRatio}
+    `;
+
+    const messageContent: any[] = [{ type: "text", text: textPrompt }];
+
+    if (referenceImage) {
+      messageContent.push({
+        type: "image_url",
+        image_url: {
+          url: referenceImage,
+        },
+      });
+    }
+
     const response = await openai.chat.completions.create({
-      model: "google/gemini-2.0-flash-exp:free",
+      model: 'google/gemini-3-pro-image-preview',
       messages: [
         {
           role: "user",
-          content: prompt,
-        },
+          content: messageContent
+        }
       ],
-    });
+      modalities: ["image", "text"],
+      image_config: {
+        aspect_ratio: config.aspectRatio
+      }
+    } as any);
 
-    const imageUrl = response.choices[0]?.message?.content || "";
+    // Extract image from response
+    const message = response.choices[0]?.message;
+    if (message && (message as any).images && Array.isArray((message as any).images)) {
+      const images = (message as any).images;
+      if (images.length > 0) {
+        const imageUrl = images[0].image_url.url;
+        return new Response(
+          JSON.stringify({ imageUrl }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
 
-    return new Response(
-      JSON.stringify({ imageUrl }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
+    throw new Error('No image generated');
   } catch (error: any) {
     console.error("Generate Error:", error);
     return new Response(

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { analyzeJewelryImage } from '../services/geminiService';
+import { analyzeJewelryImage } from '../services/geminiService.secure';
 import { ImageAnalysis } from '../types';
 
 export const useJewelryAnalysis = () => {

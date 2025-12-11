@@ -23,11 +23,11 @@ export async function handleAnalyze(req: Request): Promise<Response> {
     }
 
     const body = await req.json();
-    const { imageUrl, prompt } = body;
+    const { base64Image, promptConfig } = body;
 
-    if (!imageUrl || !prompt) {
+    if (!base64Image) {
       return new Response(
-        JSON.stringify({ error: "Missing imageUrl or prompt" }),
+        JSON.stringify({ error: "Missing base64Image" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -41,23 +41,63 @@ export async function handleAnalyze(req: Request): Promise<Response> {
       baseURL: "https://openrouter.ai/api/v1",
     });
 
+    const { systemRole, fields } = promptConfig?.analysisPrompt || {
+      systemRole: "Analyze this jewelry design image.",
+      fields: {
+        designConcept: "设计理念描述 (用中文回答)",
+        style: "风格描述 (用中文回答)",
+        audience: "目标用户 (用中文回答)",
+        emotionalPoint: "情感卖点 (用中文回答)",
+        scenario: "使用场景 (用中文回答)",
+        corePoint: "核心特点 (用中文回答)",
+      }
+    };
+
     const response = await openai.chat.completions.create({
-      model: "google/gemini-2.0-flash-exp:free",
+      model: 'google/gemini-2.5-flash',
       messages: [
         {
           role: "user",
           content: [
-            { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: imageUrl } },
-          ],
-        },
+            { type: "image_url", image_url: { url: base64Image } },
+            {
+              type: "text",
+              text: `${systemRole}
+              CRITICAL: All field VALUES must be in CHINESE (Simplified).
+              Return a pure JSON object with the following fields:
+              - designConcept: ${fields.designConcept}
+              - style: ${fields.style}
+              - audience: ${fields.audience}
+              - emotionalPoint: ${fields.emotionalPoint}
+              - scenario: ${fields.scenario}
+              - corePoint: ${fields.corePoint}
+
+              IMPORTANT: Return ONLY the JSON object, no markdown formatting, no code blocks.`
+            }
+          ]
+        }
       ],
+      response_format: { type: "json_object" },
     });
 
-    const analysis = response.choices[0]?.message?.content || "";
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("No content in response");
+    }
+
+    // Clean JSON string from Markdown code blocks
+    let cleanedContent = content.trim();
+    if (cleanedContent.startsWith('```json')) {
+      cleanedContent = cleanedContent.replace(/^```json\s*/, '').replace(/```\s*$/, '');
+    } else if (cleanedContent.startsWith('```')) {
+      cleanedContent = cleanedContent.replace(/^```\s*/, '').replace(/```\s*$/, '');
+    }
+    cleanedContent = cleanedContent.trim();
+
+    const analysis = JSON.parse(cleanedContent);
 
     return new Response(
-      JSON.stringify({ analysis }),
+      JSON.stringify(analysis),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error: any) {
