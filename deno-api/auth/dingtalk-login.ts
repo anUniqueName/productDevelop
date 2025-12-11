@@ -35,7 +35,7 @@ export async function handleDingTalkLogin(req: Request): Promise<Response> {
     authUrl.searchParams.append("client_id", clientId);
     authUrl.searchParams.append("scope", "openid");
     authUrl.searchParams.append("state", state);
-    authUrl.searchParams.append("prompt", "consent");
+    authUrl.searchParams.append("prompt", "login"); // 强制重新登录,允许切换账号
 
     return new Response(
       JSON.stringify({
