@@ -151,11 +151,15 @@ export async function handleGenerate(req: Request): Promise<Response> {
     throw new Error('No image generated in API response');
   } catch (error: any) {
     console.error("[Generate] Unexpected error:", error);
+
+    // 生产环境不返回敏感信息
+    const isProduction = Deno.env.get("DENO_ENV") === "production";
+
     return new Response(
       JSON.stringify({
         error: "Failed to generate image",
-        message: error.message || String(error),
-        stack: error.stack
+        message: isProduction ? "图片生成失败,请稍后重试" : (error.message || String(error)),
+        ...(isProduction ? {} : { stack: error.stack })
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );

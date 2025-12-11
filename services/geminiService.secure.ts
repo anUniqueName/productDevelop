@@ -26,6 +26,7 @@ export const analyzeJewelryImage = async (base64Image: string): Promise<ImageAna
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // 携带Cookie进行认证
       body: JSON.stringify({
         base64Image,
         promptConfig,
@@ -33,6 +34,9 @@ export const analyzeJewelryImage = async (base64Image: string): Promise<ImageAna
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('请先登录后再使用此功能');
+      }
       const error = await response.json();
       throw new Error(error.message || 'Analysis failed');
     }
@@ -80,6 +84,7 @@ export const generateJewelryDesign = async (
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // 携带Cookie进行认证
       body: JSON.stringify({
         config: cleanConfig,
         referenceImage,
@@ -88,6 +93,11 @@ export const generateJewelryDesign = async (
     });
 
     if (!response.ok) {
+      // 401未授权错误特殊处理
+      if (response.status === 401) {
+        throw new Error('请先登录后再使用此功能');
+      }
+
       // 尝试解析JSON错误,如果失败则读取原始文本
       let errorMessage = 'Generation failed';
       try {

@@ -133,9 +133,13 @@ export async function handleDingTalkCallback(req: Request): Promise<Response> {
     console.log("[DingTalk] JWT token generated successfully");
 
     // Step 4: 设置 Cookie
+    // 生产环境使用Secure标志,开发环境不使用(支持HTTP)
+    const isProduction = Deno.env.get("DENO_ENV") === "production";
+    const secureFlag = isProduction ? "Secure; " : "";
+
     const headers = new Headers({
       "Content-Type": "application/json",
-      "Set-Cookie": `auth_token=${jwtToken}; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}; Path=/`,
+      "Set-Cookie": `auth_token=${jwtToken}; HttpOnly; ${secureFlag}SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}; Path=/`,
     });
 
     return new Response(

@@ -13,9 +13,12 @@ export async function handleLogout(req: Request): Promise<Response> {
 
   try {
     // 清除 Cookie
+    const isProduction = Deno.env.get("DENO_ENV") === "production";
+    const secureFlag = isProduction ? "Secure; " : "";
+
     const headers = new Headers({
       "Content-Type": "application/json",
-      "Set-Cookie": "auth_token=; HttpOnly; Secure; SameSite=Lax; Max-Age=0; Path=/",
+      "Set-Cookie": `auth_token=; HttpOnly; ${secureFlag}SameSite=Lax; Max-Age=0; Path=/`,
     });
 
     return new Response(

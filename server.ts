@@ -10,6 +10,33 @@ import { handleDingTalkLogin } from "./deno-api/auth/dingtalk-login.ts";
 import { handleDingTalkCallback } from "./deno-api/auth/dingtalk-callback.ts";
 import { handleUserInfo } from "./deno-api/auth/user-info.ts";
 import { handleLogout } from "./deno-api/auth/logout.ts";
+import { requireAuth, unauthorizedResponse, rateLimiter, rateLimitResponse, getClientIP } from "./deno-api/utils/auth.ts";
+
+/**
+ * 允许的CORS源
+ */
+const ALLOWED_ORIGINS = [
+  "https://productdevelop.anuniquename.deno.net",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
+/**
+ * 获取CORS头
+ */
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin)
+    ? origin
+    : ALLOWED_ORIGINS[0];
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  };
+}
 
 /**
  * 路由处理器
@@ -19,15 +46,28 @@ async function handler(req: Request): Promise<Response> {
   const pathname = url.pathname;
 
   // CORS 处理
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  };
+  const corsHeaders = getCorsHeaders(req);
 
   // 处理 OPTIONS 预检请求
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  // 速率限制检查(所有API请求)
+  if (pathname.startsWith("/api/")) {
+    const clientIP = getClientIP(req);
+    if (!rateLimiter.check(clientIP, 100, 60000)) {
+      console.warn(`[RateLimit] IP ${clientIP} exceeded rate limit`);
+      const response = rateLimitResponse();
+      const headers = new Headers(response.headers);
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        headers.set(key, value);
+      });
+      return new Response(response.body, {
+        status: response.status,
+        headers,
+      });
+    }
   }
 
   // API 路由
@@ -35,7 +75,7 @@ async function handler(req: Request): Promise<Response> {
     let response: Response;
 
     try {
-      // 认证相关 API
+      // 认证相关 API (无需认证)
       if (pathname === "/api/auth/dingtalk-login") {
         response = await handleDingTalkLogin(req);
       } else if (pathname === "/api/auth/dingtalk-callback") {
@@ -45,11 +85,25 @@ async function handler(req: Request): Promise<Response> {
       } else if (pathname === "/api/auth/logout") {
         response = await handleLogout(req);
       }
-      // 业务 API
+      // 业务 API (需要认证)
       else if (pathname === "/api/analyze") {
-        response = await handleAnalyze(req);
+        const user = await requireAuth(req);
+        if (!user) {
+          console.warn(`[Auth] Unauthorized access attempt to ${pathname}`);
+          response = unauthorizedResponse("请先登录后再使用此功能");
+        } else {
+          console.log(`[Auth] User ${user.userId} accessing ${pathname}`);
+          response = await handleAnalyze(req);
+        }
       } else if (pathname === "/api/generate") {
-        response = await handleGenerate(req);
+        const user = await requireAuth(req);
+        if (!user) {
+          console.warn(`[Auth] Unauthorized access attempt to ${pathname}`);
+          response = unauthorizedResponse("请先登录后再使用此功能");
+        } else {
+          console.log(`[Auth] User ${user.userId} accessing ${pathname}`);
+          response = await handleGenerate(req);
+        }
       }
       // 404
       else {

@@ -102,10 +102,15 @@ export async function handleAnalyze(req: Request): Promise<Response> {
     );
   } catch (error: any) {
     console.error("Analyze Error:", error);
+
+    // 生产环境不返回敏感信息
+    const isProduction = Deno.env.get("DENO_ENV") === "production";
+
     return new Response(
-      JSON.stringify({ 
-        error: "Failed to analyze image", 
-        message: error.message 
+      JSON.stringify({
+        error: "Failed to analyze image",
+        message: isProduction ? "图片分析失败,请稍后重试" : error.message,
+        ...(isProduction ? {} : { stack: error.stack })
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
