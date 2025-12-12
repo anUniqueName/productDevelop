@@ -161,14 +161,14 @@ export async function handleDingTalkCallback(req: Request): Promise<Response> {
         errorData = { message: errorText };
       }
 
-      // 如果是权限错误
+      // 直接返回钉钉原始错误信息
       if (errorData.code === "Forbidden.AccessDenied.AccessTokenPermissionDenied") {
         return new Response(
           JSON.stringify({
-            error: "Permission denied",
-            message: "钉钉应用缺少必要权限。请在钉钉开放平台为应用添加 'Contact.User.Read' 权限。",
-            details: errorData,
-            helpUrl: "https://open.dingtalk.com/document/orgapp-server/add-api-permission"
+            error: "DingTalk API Error",
+            message: errorData.message || "获取用户信息失败",
+            code: errorData.code,
+            details: errorData
           }),
           { status: 403, headers: { "Content-Type": "application/json" } }
         );
