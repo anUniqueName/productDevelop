@@ -154,33 +154,27 @@ export async function handleDingTalkCallback(req: Request): Promise<Response> {
       console.error("  - API Endpoint: https://api.dingtalk.com/v1.0/contact/users/me");
 
       // 解析错误信息
-      let errorData;
+      let errorData: any;
       try {
         errorData = JSON.parse(errorText);
       } catch {
         errorData = { message: errorText };
       }
 
-      // 直接返回钉钉原始错误信息
-      if (errorData.code === "Forbidden.AccessDenied.AccessTokenPermissionDenied") {
-        return new Response(
-          JSON.stringify({
-            error: "DingTalk API Error",
-            message: errorData.message || "获取用户信息失败",
-            code: errorData.code,
-            details: errorData
-          }),
-          { status: 403, headers: { "Content-Type": "application/json" } }
-        );
-      }
-
       return new Response(
         JSON.stringify({
-          error: "Failed to get user info",
-          message: "获取用户信息失败",
-          details: errorData
+          error: "DingTalk API Error",
+          message: errorData.message || "获取用户信息失败",
+          code: errorData.code,
+          details: errorData,
+          troubleshooting: {
+            step1: "确认钉钉开放平台应用已配置 'Contact.User.Read' 权限",
+            step2: "确认权限已审核通过(状态为'已授权')",
+            step3: "确认应用已发布/上线",
+            step4: "尝试重新生成 AppKey 和 AppSecret"
+          }
         }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
 
