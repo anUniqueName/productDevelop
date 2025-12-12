@@ -18,6 +18,7 @@ export async function handleDingTalkCallback(req: Request): Promise<Response> {
     const { code } = body;
 
     if (!code) {
+      console.error("[DingTalk] Missing authorization code");
       return new Response(
         JSON.stringify({ error: "Missing authorization code" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
@@ -28,9 +29,23 @@ export async function handleDingTalkCallback(req: Request): Promise<Response> {
     const clientSecret = Deno.env.get("DINGTALK_APP_SECRET");
     const jwtSecret = Deno.env.get("JWT_SECRET");
 
+    // 详细的配置检查日志
+    console.log("[DingTalk] Configuration check:");
+    console.log("  - DINGTALK_APP_KEY:", clientId ? `${clientId.substring(0, 10)}...` : "❌ MISSING");
+    console.log("  - DINGTALK_APP_SECRET:", clientSecret ? "✅ SET" : "❌ MISSING");
+    console.log("  - JWT_SECRET:", jwtSecret ? "✅ SET" : "❌ MISSING");
+
     if (!clientId || !clientSecret || !jwtSecret) {
+      console.error("[DingTalk] Server configuration incomplete!");
       return new Response(
-        JSON.stringify({ error: "Server configuration missing" }),
+        JSON.stringify({
+          error: "Server configuration missing",
+          details: {
+            hasAppKey: !!clientId,
+            hasAppSecret: !!clientSecret,
+            hasJwtSecret: !!jwtSecret
+          }
+        }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -53,7 +68,10 @@ export async function handleDingTalkCallback(req: Request): Promise<Response> {
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      console.error("[DingTalk] Token Error:", errorText);
+      console.error("[DingTalk] Token Error Response:", errorText);
+      console.error("[DingTalk] Token Request Details:");
+      console.error("  - clientId:", clientId?.substring(0, 10) + "...");
+      console.error("  - code:", code?.substring(0, 20) + "...");
 
       // 解析错误信息
       let errorData;
@@ -75,9 +93,24 @@ export async function handleDingTalkCallback(req: Request): Promise<Response> {
         );
       }
 
+      // 如果是AppKey或AppSecret错误
+      if (errorData.code === "Forbidden.AccessDenied" ||
+          errorData.message?.includes("appKey") ||
+          errorData.message?.includes("appSecret")) {
+        return new Response(
+          JSON.stringify({
+            error: "Invalid DingTalk credentials",
+            message: "钉钉应用配置错误，请检查DINGTALK_APP_KEY和DINGTALK_APP_SECRET",
+            details: errorData
+          }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
       return new Response(
         JSON.stringify({
           error: "Failed to get access token",
+          message: "获取访问令牌失败，请检查钉钉应用配置",
           details: errorData
         }),
         { status: 500, headers: { "Content-Type": "application/json" } }
