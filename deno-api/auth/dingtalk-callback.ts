@@ -118,6 +118,23 @@ export async function handleDingTalkCallback(req: Request): Promise<Response> {
     }
 
     const tokenData = await tokenResponse.json();
+
+    // 🔍 详细日志:检查 tokenData 的完整结构
+    console.log("=== [DingTalk] Complete Token Response ===");
+    console.log("Full tokenData:", JSON.stringify(tokenData, null, 2));
+    console.log("Available keys:", Object.keys(tokenData));
+    console.log("Has accessToken:", !!tokenData.accessToken);
+    console.log("Has refreshToken:", !!tokenData.refreshToken);
+    console.log("Has expireIn:", !!tokenData.expireIn);
+    console.log("Has corpId:", !!tokenData.corpId);
+    console.log("Has nick:", !!tokenData.nick);
+    console.log("Has unionId:", !!tokenData.unionId);
+    console.log("Has openId:", !!tokenData.openId);
+    console.log("Has mobile:", !!tokenData.mobile);
+    console.log("Has email:", !!tokenData.email);
+    console.log("Has avatarUrl:", !!tokenData.avatarUrl);
+    console.log("==========================================");
+
     const accessToken = tokenData.accessToken;
     console.log("[DingTalk] Access token obtained successfully");
 
@@ -130,10 +147,39 @@ export async function handleDingTalkCallback(req: Request): Promise<Response> {
     );
 
     if (!userInfoResponse.ok) {
-      const error = await userInfoResponse.text();
-      console.error("DingTalk UserInfo Error:", error);
+      const errorText = await userInfoResponse.text();
+      console.error("[DingTalk] UserInfo Error Response:", errorText);
+      console.error("[DingTalk] UserInfo Request Details:");
+      console.error("  - Access Token:", accessToken?.substring(0, 20) + "...");
+      console.error("  - API Endpoint: https://api.dingtalk.com/v1.0/contact/users/me");
+
+      // 解析错误信息
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText };
+      }
+
+      // 如果是权限错误
+      if (errorData.code === "Forbidden.AccessDenied.AccessTokenPermissionDenied") {
+        return new Response(
+          JSON.stringify({
+            error: "Permission denied",
+            message: "钉钉应用缺少必要权限。请在钉钉开放平台为应用添加 'Contact.User.Read' 权限。",
+            details: errorData,
+            helpUrl: "https://open.dingtalk.com/document/orgapp-server/add-api-permission"
+          }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ error: "Failed to get user info" }),
+        JSON.stringify({
+          error: "Failed to get user info",
+          message: "获取用户信息失败",
+          details: errorData
+        }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
